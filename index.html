@@ -1,7 +1,9 @@
+
 <!doctype html>
 <html lang="ru">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FENIX 3D — изделия с характером</title>
 <meta name="description" content="FENIX 3D — магазин авторских изделий 3D-печати.">
 <style>
@@ -30,7 +32,7 @@ footer{border-top:1px solid var(--border);padding:35px 0;color:var(--muted);font
 <section id="catalog"><div class="container"><h2 class="section-title">Наши изделия</h2><p class="sub">Демонстрационные товары. Позже заменим их фотографиями и ценами наших работ.</p><div class="toolbar"><div class="filters" id="filters"></div><input class="search" id="search" placeholder="🔎 Найти изделие..." aria-label="Поиск товаров"></div><div class="products" id="products"></div></div></section>
 <section class="features" id="about"><div class="container"><h2 class="section-title">Создано с характером</h2><p class="sub">FENIX 3D — небольшая мастерская, где идеи становятся настоящими вещами.</p><div class="feature-grid"><div class="feature"><span>✨</span><h3>Внимание к деталям</h3><p>Стремимся к аккуратной печати и красивому результату.</p></div><div class="feature"><span>🎁</span><h3>Необычные подарки</h3><p>Вещи, которые хочется подарить или оставить себе.</p></div><div class="feature" id="delivery"><span>📦</span><h3>Доставка по Украине</h3><p>Условия и способы доставки уточним перед запуском магазина.</p></div></div></div></section></main>
 <footer><div class="container foot"><div>🔥 <strong>FENIX 3D</strong> © <span id="year"></span></div><div>Сайт в разработке · Демо-версия</div></div></footer>
-<div class="overlay" id="overlay"></div><aside class="drawer" id="drawer" aria-label="Корзина"><div class="drawer-head"><h2>Ваша корзина</h2><button class="close" id="close" aria-label="Закрыть">×</button></div><div class="items" id="items"></div><div id="checkout"><div class="total" id="total"></div><label class="formfield">Ваше имя<input id="customer" placeholder="Как к вам обращаться"></label><label class="formfield">Телефон<input id="phone" placeholder="+380..." type="tel"></label><label class="formfield">Комментарий к заказу<textarea id="comment" rows="2" placeholder="Город, отделение доставки, пожелания"></textarea></label><button class="btn" style="width:100%" id="copyOrder">Скопировать заявку</button><p class="notice">Это демонстрационная версия: кнопка копирует заказ в буфер обмена, но не отправляет его продавцу. Онлайн-оплату и приём заказов подключим перед запуском.</p></div></aside>
+<div class="overlay" id="overlay"></div><aside class="drawer" id="drawer" aria-label="Корзина"><div class="drawer-head"><h2>Ваша корзина</h2><button class="close" id="close" aria-label="Закрыть">×</button></div><div class="items" id="items"></div><div id="checkout"><div class="total" id="total"></div><label class="formfield">Ваше имя<input id="customer" placeholder="Как к вам обращаться"></label><label class="formfield">Телефон<input id="phone" placeholder="+380..." type="tel"></label><label class="formfield">Комментарий к заказу<textarea id="comment" rows="2" placeholder="Город, отделение доставки, пожелания"></textarea></label><button class="btn" style="width:100%" id="copyOrder">Оформить заказ</button><p class="notice">Заказ отправляется продавцу в Telegram. Оплата и доставка согласовываются после подтверждения заказа.</p></div></aside>
 <script>
 const products=[
 {id:1,name:"Декоративный дракон",cat:"Фигурки",price:350,icon:"🐉",desc:"Необычная фигурка для подарка или коллекции."},
@@ -50,7 +52,31 @@ function renderCart(){const entries=Object.entries(cart).filter(([id,q])=>q>0&&p
 function openCart(){$("overlay").classList.add("show");$("drawer").classList.add("show")}
 function closeCart(){$("overlay").classList.remove("show");$("drawer").classList.remove("show")}
 $("cartOpen").onclick=openCart;$("close").onclick=closeCart;$("overlay").onclick=closeCart;$("search").oninput=renderProducts;
-$("copyOrder").onclick=async()=>{const name=$("customer").value.trim(),phone=$("phone").value.trim();if(!name||!phone){alert("Укажите имя и телефон.");return}const lines=Object.entries(cart).map(([id,q])=>{const p=products.find(x=>x.id==id);return `${p.name} — ${q} шт. × ${money(p.price)}`});const message=`Заявка FENIX 3D\nИмя: ${name}\nТелефон: ${phone}\n${lines.join("\n")}\n${$("total").textContent}\nКомментарий: ${$("comment").value}`;try{await navigator.clipboard.writeText(message);alert("Заявка скопирована. Пока она не отправлена продавцу.")}catch(e){window.prompt("Скопируйте текст заявки:",message)}};
+const ORDER_ENDPOINT="https://fenix3d-orders.besarabulia11.workers.dev/";
+$("copyOrder").onclick=async()=>{
+  const name=$("customer").value.trim(),phone=$("phone").value.trim();
+  if(!name||!phone){alert("Укажите имя и телефон.");return}
+  const items=Object.entries(cart).filter(([id,q])=>q>0&&products.some(p=>p.id==id)).map(([id,q])=>{
+    const p=products.find(x=>x.id==id);
+    return {name:p.name,qty:q,price:p.price};
+  });
+  if(!items.length){alert("Корзина пуста.");return}
+  const button=$("copyOrder");button.disabled=true;button.textContent="Отправляем заказ...";
+  try{
+    const response=await fetch(ORDER_ENDPOINT,{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({name,phone,items,comment:$("comment").value.trim()})
+    });
+    if(!response.ok)throw new Error("HTTP "+response.status);
+    const result=await response.json();
+    if(!result.success)throw new Error("Order not confirmed");
+    alert("Спасибо! Ваш заказ отправлен продавцу. Мы свяжемся с вами для подтверждения.");
+    cart={};save();$("comment").value="";closeCart();
+  }catch(error){
+    console.error("Order delivery error",error);
+    alert("Не удалось отправить заказ. Попробуйте ещё раз чуть позже. Корзина сохранена.");
+  }finally{button.disabled=false;button.textContent="Оформить заказ"}
+};
 $("year").textContent=new Date().getFullYear();renderFilters();renderProducts();renderCart();
 </script>
 </body></html>
