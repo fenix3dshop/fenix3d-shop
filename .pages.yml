@@ -1,0 +1,42 @@
+# FENIX 3D — управление каталогом через https://app.pagescms.org/
+media:
+  input: images
+  output: images
+  rename: safe
+  categories: [image]
+content:
+  - name: products
+    label: Товары магазина
+    type: file
+    path: data/products.json
+    format: json
+    list: true
+    fields:
+      - name: id
+        label: Номер товара (уникальный)
+        type: number
+        required: true
+      - name: name
+        label: Название
+        type: string
+        required: true
+      - name: cat
+        label: Категория
+        type: string
+        required: true
+      - name: price
+        label: Цена в гривнах
+        type: number
+        required: true
+      - name: image
+        label: Фотография
+        type: image
+      - name: icon
+        label: Значок, если нет фотографии
+        type: string
+      - name: desc
+        label: Описание
+        type: text
+      - name: visible
+        label: Показывать в магазине
+        type: boolean
