@@ -40,3 +40,6 @@ content:
       - name: visible
         label: Показывать в магазине
         type: boolean
+      - name: source_url
+        label: Ссылка на MakerWorld
+        type: string
